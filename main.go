@@ -9,35 +9,41 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func main() {
-	var wg sync.WaitGroup
-	inputs := make(chan string)
+var (
+	wg      sync.WaitGroup
+	inputs  = make(chan string)
+	outputs = make(chan string)
+)
 
+func read() {
+	defer close(inputs)
+	defer wg.Done()
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		inputs <- scanner.Text()
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading standard input:", err)
+	}
+}
+
+func operate() {
+	defer wg.Done()
+	for in := range inputs {
+		hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
+		outputs <- string(hash)
+	}
+}
+
+func main() {
 	// read in
 	wg.Add(1)
-	go func() {
-		defer close(inputs)
-		defer wg.Done()
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			inputs <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "reading standard input:", err)
-		}
-	}()
+	go read()
 
-	outputs := make(chan string)
 	// process
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for in := range inputs {
-				hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
-				outputs <- string(hash)
-			}
-		}()
+		go operate()
 	}
 
 	go func() {
@@ -47,8 +53,6 @@ func main() {
 
 	// output
 	for v := range outputs {
-		fmt.Printf("%x\n", v)
+		fmt.Printf("the output is %x\n", v)
 	}
-
-	wg.Wait()
 }
