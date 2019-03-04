@@ -9,12 +9,37 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type tasker interface {
+	process()
+	print()
+}
+
 type hashed struct {
 	input     string
 	encrypted string
 }
 
-func create(s string) *hashed {
+func (h *hashed) process() {
+	hash, _ := bcrypt.GenerateFromPassword([]byte(h.input), bcrypt.DefaultCost)
+	h.encrypted = string(hash)
+}
+
+func (h *hashed) print() {
+	fmt.Printf("the input is %s, the output is %x\n", h.input, h.encrypted)
+
+	// err := bcrypt.CompareHashAndPassword([]byte(h.encrypted), []byte(h.input))
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+}
+
+type maker interface {
+	create(s string) tasker
+}
+
+type hashedMaker struct{}
+
+func (m *hashedMaker) create(s string) tasker {
 	return &hashed{s, ""}
 }
 
@@ -22,36 +47,35 @@ var (
 	wg sync.WaitGroup
 )
 
-func read(inputs chan<- *hashed) {
+func read(f maker, inputs chan<- tasker) {
 	defer close(inputs)
 	defer wg.Done()
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		inputs <- create(scanner.Text())
+		inputs <- f.create(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
 }
 
-func operate(inputs <-chan *hashed, outputs chan<- *hashed) {
+func operate(inputs <-chan tasker, outputs chan<- tasker) {
 	defer wg.Done()
 	for in := range inputs {
-		hash, _ := bcrypt.GenerateFromPassword([]byte(in.input), bcrypt.DefaultCost)
-		in.encrypted = string(hash)
+		in.process()
 		outputs <- in
 	}
 }
 
-func main() {
-	inputs := make(chan *hashed)
-	outputs := make(chan *hashed)
+func run(f maker) {
+	inputs := make(chan tasker)
+	outputs := make(chan tasker)
 	// read in
 	wg.Add(1)
-	go read(inputs)
+	go read(f, inputs)
 
 	// process
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go operate(inputs, outputs)
 	}
@@ -63,6 +87,11 @@ func main() {
 
 	// output
 	for v := range outputs {
-		fmt.Printf("the output is %x\n", v.encrypted)
+		v.print()
 	}
+}
+
+func main() {
+	factory := hashedMaker{}
+	run(&factory)
 }
