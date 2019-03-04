@@ -4,15 +4,19 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sync"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
+	var wg sync.WaitGroup
 	inputs := make(chan string)
 
+	wg.Add(1)
 	go func() {
 		defer close(inputs)
+		defer wg.Done()
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			s := scanner.Text()
@@ -23,7 +27,9 @@ func main() {
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			in, ok := <-inputs
 			if !ok {
@@ -33,4 +39,6 @@ func main() {
 			fmt.Printf("%x\n", hash)
 		}
 	}()
+
+	wg.Wait()
 }
