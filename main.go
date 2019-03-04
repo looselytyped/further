@@ -13,6 +13,7 @@ func main() {
 	var wg sync.WaitGroup
 	inputs := make(chan string)
 
+	// read in
 	wg.Add(1)
 	go func() {
 		defer close(inputs)
@@ -26,16 +27,24 @@ func main() {
 		}
 	}()
 
+	outputs := make(chan string)
+	// process
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for in := range inputs {
 				hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
-				fmt.Printf("%x\n", hash)
+				outputs <- string(hash)
 			}
 		}()
 	}
 
+	// output
+	for v := range outputs {
+		fmt.Printf("%x\n", v)
+	}
+
 	wg.Wait()
+	// close(outputs) // where does this go?
 }
