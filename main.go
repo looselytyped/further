@@ -40,11 +40,15 @@ func main() {
 		}()
 	}
 
+	go func() {
+		wg.Wait()
+		close(outputs)
+	}()
+
 	// output
 	for v := range outputs {
 		fmt.Printf("%x\n", v)
 	}
 
 	wg.Wait()
-	// close(outputs) // where does this go?
 }
