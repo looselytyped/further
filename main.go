@@ -11,14 +11,17 @@ import (
 func main() {
 	inputs := make(chan string)
 
-	defer close(inputs)
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		inputs <- scanner.Text()
-	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-	}
+	go func() {
+		defer close(inputs)
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			s := scanner.Text()
+			inputs <- s
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, "reading standard input:", err)
+		}
+	}()
 
 	for {
 		in, ok := <-inputs
