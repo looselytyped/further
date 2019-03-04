@@ -19,26 +19,23 @@ func main() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
-			s := scanner.Text()
-			inputs <- s
+			inputs <- scanner.Text()
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Fprintln(os.Stderr, "reading standard input:", err)
 		}
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			in, ok := <-inputs
-			if !ok {
-				break
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for in := range inputs {
+				hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
+				fmt.Printf("%x\n", hash)
 			}
-			hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
-			fmt.Printf("%x\n", hash)
-		}
-	}()
+		}()
+	}
 
 	wg.Wait()
 }
