@@ -23,12 +23,14 @@ func main() {
 		}
 	}()
 
-	for {
-		in, ok := <-inputs
-		if !ok {
-			break
+	go func() {
+		for {
+			in, ok := <-inputs
+			if !ok {
+				break
+			}
+			hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
+			fmt.Printf("%x\n", hash)
 		}
-		hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
-		fmt.Printf("%x\n", hash)
-	}
+	}()
 }
