@@ -10,12 +10,10 @@ import (
 )
 
 var (
-	wg      sync.WaitGroup
-	inputs  = make(chan string)
-	outputs = make(chan string)
+	wg sync.WaitGroup
 )
 
-func read() {
+func read(inputs chan<- string) {
 	defer close(inputs)
 	defer wg.Done()
 	scanner := bufio.NewScanner(os.Stdin)
@@ -27,7 +25,7 @@ func read() {
 	}
 }
 
-func operate() {
+func operate(inputs <-chan string, outputs chan<- string) {
 	defer wg.Done()
 	for in := range inputs {
 		hash, _ := bcrypt.GenerateFromPassword([]byte(in), bcrypt.DefaultCost)
@@ -36,14 +34,16 @@ func operate() {
 }
 
 func main() {
+	inputs := make(chan string)
+	outputs := make(chan string)
 	// read in
 	wg.Add(1)
-	go read()
+	go read(inputs)
 
 	// process
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go operate()
+		go operate(inputs, outputs)
 	}
 
 	go func() {
